@@ -60,7 +60,7 @@ DEFAULT_CONFIG = {
     "deepseek": {
         "api_key": "",
         "base_url": "https://api.deepseek.com",
-        "model": "deepseek-v4-flash",
+        "model": "deepseek-flash",
         "max_tokens": 200,
         "temperature": 0.7,
         "system_prompt": "你是一个友善的B站UP主，请对评论做出自然、友好的回复。回复要简洁明了，控制在100字以内。",

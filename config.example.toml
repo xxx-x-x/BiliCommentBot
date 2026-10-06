@@ -49,9 +49,9 @@ api_key = "sk-xxx"
 # API基础URL
 base_url = "https://api.deepseek.com"
 # 使用的模型
-model = "deepseek-v4-flash"
+model = "deepseek-flash"
 # 最大回复长度
-max_tokens = 200
+max_tokens = 500
 # 温度参数（0-1，控制回复的随机性）
 temperature = 0.7
 # 系统提示词（定义AI的角色和行为）

@@ -400,7 +400,7 @@ class ConfigEditor:
         ttk.Label(frame, text="使用的模型:").pack(anchor=tk.W)
         model_entry = ttk.Entry(frame, width=40)
         model_entry.pack(anchor=tk.W, pady=(0, 10))
-        model_entry.insert(0, self.get_value("deepseek", "model", "deepseek-v4-flash"))
+        model_entry.insert(0, self.get_value("deepseek", "model", "deepseek-flash"))
         self.widgets["deepseek.model"] = (model_entry, "string")
         
         # 最大回复长度
