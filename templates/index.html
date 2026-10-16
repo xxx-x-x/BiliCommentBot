@@ -143,6 +143,21 @@
   .control-bar { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
   .running-badge { display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: var(--surface2); border-radius: 8px; font-size: 14px; }
 
+  /* Knowledge & review */
+  .split-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, .8fr); gap: 20px; }
+  .section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+  .section-head .card-title { margin-bottom: 0; }
+  .empty-state { padding: 32px 16px; color: var(--text2); text-align: center; border: 1px dashed var(--border); border-radius: 8px; }
+  .item-list { display: grid; gap: 10px; }
+  .list-item { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+  .list-title { font-weight: 600; word-break: break-word; }
+  .list-meta { color: var(--text2); font-size: 12px; margin-top: 5px; word-break: break-all; }
+  .draft-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 14px; }
+  .draft-head, .draft-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .draft-comment { background: var(--bg); border-left: 3px solid var(--accent2); padding: 12px; border-radius: 6px; margin: 14px 0; white-space: pre-wrap; word-break: break-word; }
+  .draft-actions { justify-content: flex-end; margin-top: 12px; }
+  .badge-yellow { background: rgba(246,201,14,.15); color: var(--yellow); }
+
   /* Pagination */
   .pagination { display: flex; gap: 8px; align-items: center; margin-top: 16px; justify-content: flex-end; }
   .page-btn { padding: 6px 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; color: var(--text); cursor: pointer; font-size: 13px; }
@@ -162,7 +177,147 @@
     .sidebar { width: 60px; }
     .sidebar-logo, .nav-list li a span:not(.icon) { display: none; }
     .main { margin-left: 60px; padding: 16px; }
-    .form-row, .form-row-3 { grid-template-columns: 1fr; }
+    .form-row, .form-row-3, .split-grid { grid-template-columns: 1fr; }
+    .draft-actions .btn { flex: 1; justify-content: center; padding-left: 10px; padding-right: 10px; }
+  }
+  /* Admin design system */
+  :root {
+    --bg: #0c0d10;
+    --surface: #15171b;
+    --surface2: #1d2025;
+    --surface3: #25282f;
+    --border: #30343b;
+    --border-strong: #444952;
+    --accent: #f05d87;
+    --accent-hover: #fa7398;
+    --accent-soft: rgba(240, 93, 135, .12);
+    --accent2: #55a9e8;
+    --green: #55b983;
+    --yellow: #d8aa55;
+    --red: #e46b70;
+    --text: #f1f2f4;
+    --text2: #9ca2ad;
+    --text3: #6f7681;
+    --radius: 6px;
+    --shadow: 0 12px 32px rgba(0, 0, 0, .2);
+  }
+  html { color-scheme: dark; }
+  body { font-family: "Microsoft YaHei UI", "Segoe UI", system-ui, sans-serif; line-height: 1.5; letter-spacing: 0; }
+  button, input, select, textarea { font: inherit; letter-spacing: 0; }
+  a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+    outline: 2px solid var(--accent2); outline-offset: 2px;
+  }
+  .sidebar { width: 232px; padding: 0; background: #111318; z-index: 100; }
+  .sidebar-logo { min-height: 76px; padding: 18px 20px; display: flex; flex-direction: column; justify-content: center; }
+  .sidebar-logo .logo-title { color: var(--text); font-size: 16px; }
+  .sidebar-logo .logo-sub { color: var(--text3); }
+  .nav-list { margin-top: 12px; padding: 0 10px 16px; display: flex; flex-direction: column; gap: 3px; }
+  .nav-list li a { min-height: 42px; padding: 9px 12px; border: 1px solid transparent; border-radius: 5px; transition: background .15s, color .15s, border-color .15s; }
+  .nav-list li a:hover { background: var(--surface2); border-color: var(--border); }
+  .nav-list li a.active { color: var(--text); background: var(--accent-soft); border-color: rgba(240,93,135,.28); border-left-color: rgba(240,93,135,.28); }
+  .nav-list li a.active .icon { color: var(--accent); }
+  .nav-list li a .icon { font-size: 15px; }
+  .status-dot { width: 7px; height: 7px; box-shadow: 0 0 0 3px rgba(228,107,112,.1); }
+  .status-dot.running { box-shadow: 0 0 0 3px rgba(85,185,131,.12); animation: none; }
+  .main { margin-left: 232px; padding: 28px clamp(24px, 4vw, 56px) 48px; max-width: 1680px; }
+  .page { animation: page-in .16s ease-out; }
+  @keyframes page-in { from { opacity: 0; transform: translateY(3px); } }
+  .page-title { font-size: 20px; line-height: 28px; margin-bottom: 20px; gap: 9px; flex-wrap: wrap; }
+  .page-title .icon { font-size: 17px; }
+  .page-title .page-heading { display: flex; flex-direction: column; gap: 1px; }
+  .page-title .page-description { color: var(--text2); font-size: 12px; line-height: 18px; font-weight: 400; }
+  .card { background: var(--surface); padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 0 rgba(255,255,255,.015); }
+  .card-title { color: var(--text); font-size: 13px; text-transform: none; letter-spacing: 0; margin-bottom: 14px; }
+  .stats-grid { grid-template-columns: repeat(4, minmax(140px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .stat-card { padding: 16px 18px; background: var(--surface); position: relative; min-height: 88px; }
+  .stat-value { color: var(--text); font-size: 25px; line-height: 32px; font-variant-numeric: tabular-nums; }
+  .stat-label { color: var(--text2); margin-top: 5px; }
+  .btn { min-height: 36px; padding: 7px 13px; border-radius: 5px; border: 1px solid transparent; gap: 7px; font-size: 13px; transition: background .15s, border-color .15s, color .15s, opacity .15s; }
+  .btn-primary { background: var(--accent); }
+  .btn-primary:hover { background: var(--accent-hover); filter: none; }
+  .btn-success { background: #286a4b; border-color: #3c8965; }
+  .btn-success:hover { background: #327b59; filter: none; }
+  .btn-danger { background: transparent; border-color: rgba(228,107,112,.5); color: #f08b8f; }
+  .btn-danger:hover { background: rgba(228,107,112,.1); filter: none; }
+  .btn-info { background: #246b9d; border-color: #347faf; }
+  .btn-info:hover { background: #2d79aa; filter: none; }
+  .btn-secondary { background: var(--surface2); border-color: var(--border); }
+  .btn-secondary:hover { background: var(--surface3); border-color: var(--border-strong); }
+  .form-group { margin-bottom: 16px; }
+  .form-label { color: #b4bac4; font-size: 12px; margin-bottom: 6px; }
+  .form-input, .form-select, .form-textarea { background: #101216; border-color: var(--border); border-radius: 5px; min-height: 38px; padding: 8px 11px; }
+  .form-input:hover, .form-select:hover, .form-textarea:hover { border-color: var(--border-strong); }
+  .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: var(--accent2); box-shadow: 0 0 0 3px rgba(85,169,232,.12); }
+  .form-hint { color: var(--text3); line-height: 18px; margin-top: 5px; }
+  .form-row, .form-row-3 { gap: 14px; }
+  .tab-bar { gap: 0; overflow-x: auto; scrollbar-width: thin; margin-bottom: 18px; }
+  .tab-btn { min-height: 40px; padding: 9px 14px; white-space: nowrap; }
+  .tab-btn.active { color: var(--text); border-bottom-color: var(--accent); }
+  .split-grid { grid-template-columns: minmax(440px, 1.08fr) minmax(340px, .92fr); gap: 16px; align-items: start; }
+  .section-head { margin-bottom: 14px; }
+  .empty-state { padding: 28px 16px; color: var(--text3); background: rgba(255,255,255,.01); border-radius: 5px; }
+  .item-list { gap: 8px; }
+  .list-item { background: #101216; border-radius: 5px; padding: 12px; transition: border-color .15s, background .15s; }
+  button.list-item:hover { border-color: var(--accent2); background: #141820; }
+  .list-title { font-size: 13px; }
+  .list-meta { color: var(--text2); line-height: 18px; }
+  .draft-card { background: #101216; padding: 16px; margin-bottom: 10px; box-shadow: none; }
+  .draft-comment { background: var(--surface2); border-left: 2px solid var(--accent2); border-radius: 4px; }
+  .badge { border-radius: 4px; padding: 3px 7px; font-size: 11px; }
+  .table-wrap { border: 1px solid var(--border); border-radius: 5px; }
+  th { background: #101216; color: #b4bac4; padding: 9px 12px; }
+  td { padding: 10px 12px; }
+  tr:hover td { background: rgba(85,169,232,.035); }
+  .log-container { background: #090a0d; border-radius: 5px; height: min(62vh, 560px); }
+  .alert { border-radius: 5px; }
+  #toast-container { top: 16px; right: 16px; }
+  .toast { border-radius: 5px; box-shadow: var(--shadow); }
+  .auth-box { border-radius: 8px; box-shadow: var(--shadow); }
+  @media (max-width: 1080px) {
+    .main { padding: 24px; }
+    .stats-grid { grid-template-columns: repeat(2, minmax(140px, 1fr)); }
+    .split-grid { grid-template-columns: 1fr; }
+  }
+  @media (min-width: 721px) and (max-width: 960px) {
+    .sidebar { width: 72px; }
+    .sidebar-logo { padding: 16px 8px; text-align: center; }
+    .sidebar-logo .logo-title { font-size: 0; }
+    .sidebar-logo .logo-title::after { content: "BB"; font-size: 14px; color: var(--accent); }
+    .sidebar-logo .logo-sub, .nav-list li a span:not(.icon):not(.status-dot) { display: none; }
+    .nav-list { padding: 0 9px 16px; }
+    .nav-list li a { justify-content: center; padding: 9px; position: relative; }
+    .nav-list li a .icon { width: auto; }
+    .status-dot { position: absolute; right: 6px; top: 7px; }
+    .main { margin-left: 72px; }
+  }
+  @media (max-width: 720px) {
+    body { padding-bottom: 68px; }
+    .app { min-height: calc(100vh - 68px); }
+    .sidebar { width: 100%; min-height: 0; height: 64px; top: auto; right: 0; bottom: 0; border-right: 0; border-top: 1px solid var(--border); }
+    .sidebar-logo { display: none; }
+    .nav-list { margin: 0; padding: 6px 4px; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); align-items: stretch; gap: 0; overflow: hidden; }
+    .nav-list li { min-width: 0; }
+    .nav-list li a { min-height: 51px; padding: 5px 1px; flex-direction: column; justify-content: center; gap: 2px; font-size: 9px; text-align: center; }
+    .nav-list li a span:not(.icon):not(.status-dot) { display: block; max-width: 64px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .nav-list li a .icon { width: auto; font-size: 15px; }
+    .status-dot { position: absolute; margin: 0 0 25px 22px; }
+    .main { margin-left: 0; padding: 18px 14px 24px; width: 100%; }
+    .page-title { font-size: 18px; margin-bottom: 16px; }
+    .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .stat-card { padding: 13px; min-height: 78px; }
+    .stat-value { font-size: 22px; }
+    .card { padding: 15px; margin-bottom: 12px; }
+    .form-row, .form-row-3, .split-grid { grid-template-columns: 1fr; }
+    .control-bar, .draft-actions { gap: 8px; }
+    .control-bar .btn, .draft-actions .btn { flex: 1 1 calc(50% - 8px); justify-content: center; padding-left: 8px; padding-right: 8px; }
+    .section-head { align-items: flex-end; }
+    .tab-bar { margin-left: -14px; margin-right: -14px; padding: 0 14px; }
+    #toast-container { left: 12px; right: 12px; top: 12px; }
+    .toast { min-width: 0; width: 100%; }
+    .auth-box { width: calc(100vw - 28px); padding: 26px 20px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
   }
   /* Auth Gate */
   .auth-gate { position: fixed; inset: 0; z-index: 9999; background: var(--bg); display: flex; align-items: center; justify-content: center; }
@@ -196,11 +351,13 @@
       <div class="logo-sub">B站评论自动回复</div>
     </div>
     <ul class="nav-list">
-      <li><a href="#" class="active" data-page="dashboard"><span class="icon">📊</span><span>控制台</span><span class="status-dot" id="nav-status-dot"></span></a></li>
-      <li><a href="#" data-page="config"><span class="icon">⚙️</span><span>配置</span></a></li>
-      <li><a href="#" data-page="login"><span class="icon">🔑</span><span>登录</span></a></li>
-      <li><a href="#" data-page="history"><span class="icon">📝</span><span>历史记录</span></a></li>
-      <li><a href="#" data-page="logs"><span class="icon">📋</span><span>实时日志</span></a></li>
+      <li><a href="#" class="active" data-page="dashboard" aria-label="控制台" title="控制台"><span class="icon">▦</span><span>控制台</span><span class="status-dot" id="nav-status-dot"></span></a></li>
+      <li><a href="#" data-page="config" aria-label="配置" title="配置"><span class="icon">⚙</span><span>配置</span></a></li>
+      <li><a href="#" data-page="knowledge" aria-label="知识库" title="知识库"><span class="icon">▤</span><span>知识库</span></a></li>
+      <li><a href="#" data-page="review" aria-label="审核队列" title="审核队列"><span class="icon">✓</span><span>审核队列</span></a></li>
+      <li><a href="#" data-page="login" aria-label="扫码登录" title="扫码登录"><span class="icon">◇</span><span>登录</span></a></li>
+      <li><a href="#" data-page="history" aria-label="回复历史" title="回复历史"><span class="icon">≡</span><span>历史记录</span></a></li>
+      <li><a href="#" data-page="logs" aria-label="实时日志" title="实时日志"><span class="icon">›_</span><span>实时日志</span></a></li>
     </ul>
   </aside>
 
@@ -209,7 +366,7 @@
 
     <!-- Dashboard -->
     <div class="page active" id="page-dashboard">
-      <div class="page-title"><span class="icon">📊</span>控制台</div>
+      <div class="page-title"><span class="icon">▦</span><span class="page-heading">控制台<span class="page-description">监控机器人状态和最近一次检查</span></span></div>
 
       <div class="stats-grid">
         <div class="stat-card">
@@ -233,10 +390,10 @@
       <div class="card">
         <div class="card-title">机器人控制</div>
         <div class="control-bar">
-          <button class="btn btn-success" id="btn-start" onclick="botStart()">▶ 启动机器人</button>
-          <button class="btn btn-danger" id="btn-stop" onclick="botStop()" disabled>⏹ 停止</button>
-          <button class="btn btn-secondary" onclick="verifyLogin()">🔍 验证登录状态</button>
-          <button class="btn btn-secondary" onclick="clearCache()">🗑 清除视频缓存</button>
+          <button class="btn btn-success" id="btn-start" onclick="botStart()">启动机器人</button>
+          <button class="btn btn-danger" id="btn-stop" onclick="botStop()" disabled>停止</button>
+          <button class="btn btn-secondary" onclick="verifyLogin()">验证登录状态</button>
+          <button class="btn btn-secondary" onclick="clearCache()">清除视频缓存</button>
         </div>
         <div id="verify-result" style="margin-top:12px"></div>
       </div>
@@ -252,14 +409,15 @@
 
     <!-- Config -->
     <div class="page" id="page-config">
-      <div class="page-title"><span class="icon">⚙️</span>配置</div>
+      <div class="page-title"><span class="icon">⚙</span><span class="page-heading">配置<span class="page-description">管理账号、模型、回复策略和系统安全</span></span></div>
       <div class="tab-bar">
         <button class="tab-btn active" data-tab="tab-bilibili">B站配置</button>
-        <button class="tab-btn" data-tab="tab-deepseek">DeepSeek</button>
+        <button class="tab-btn" data-tab="tab-ai">AI 模型</button>
         <button class="tab-btn" data-tab="tab-reply">回复策略</button>
         <button class="tab-btn" data-tab="tab-rate">频率控制</button>
         <button class="tab-btn" data-tab="tab-cache">缓存</button>
         <button class="tab-btn" data-tab="tab-logging">日志</button>
+        <button class="tab-btn" data-tab="tab-intelligence">知识与发布</button>
         <button class="tab-btn" data-tab="tab-auth">安全</button>
       </div>
 
@@ -308,34 +466,38 @@
         </div>
       </div>
 
-      <!-- DeepSeek -->
-      <div class="tab-panel" id="tab-deepseek">
+      <!-- OpenAI-compatible model -->
+      <div class="tab-panel" id="tab-ai">
         <div class="card">
           <div class="form-group">
-            <label class="form-label">DeepSeek API Key</label>
-            <input class="form-input" id="cfg-deepseek-api_key" placeholder="sk-xxx" type="password">
+            <label class="form-label">API Key</label>
+            <input class="form-input" id="cfg-ai-api_key" placeholder="sk-xxx" type="password">
           </div>
           <div class="form-group">
-            <label class="form-label">API Base URL</label>
-            <input class="form-input" id="cfg-deepseek-base_url" value="https://api.deepseek.com">
+            <label class="form-label">OpenAI 兼容 API 地址</label>
+            <input class="form-input" id="cfg-ai-base_url" value="https://api.openai.com/v1" placeholder="https://api.example.com/v1">
+            <div class="form-hint">可填写 Base URL，或完整的 /chat/completions 地址。</div>
           </div>
           <div class="form-row">
             <div class="form-group">
-              <label class="form-label">模型</label>
-              <input class="form-input" id="cfg-deepseek-model" value="deepseek-flash">
+              <label class="form-label">模型名称</label>
+              <input class="form-input" id="cfg-ai-model" value="gpt-4o-mini" placeholder="gpt-4o-mini">
             </div>
             <div class="form-group">
               <label class="form-label">最大 Token 数</label>
-              <input class="form-input" type="number" id="cfg-deepseek-max_tokens" value="200">
+              <input class="form-input" type="number" id="cfg-ai-max_tokens" value="200">
             </div>
           </div>
           <div class="form-group">
             <label class="form-label">温度（0-1，越高越随机）</label>
-            <input class="form-input" type="number" step="0.1" min="0" max="1" id="cfg-deepseek-temperature" value="0.7">
+            <input class="form-input" type="number" step="0.1" min="0" max="1" id="cfg-ai-temperature" value="0.7">
+          </div>
+          <div class="form-group">
+            <label class="form-check"><input type="checkbox" id="cfg-ai-json_mode">蒸馏时启用 JSON Mode（接口不支持时请关闭）</label>
           </div>
           <div class="form-group">
             <label class="form-label">系统提示词（定义 AI 角色和回复风格）</label>
-            <textarea class="form-textarea" id="cfg-deepseek-system_prompt" rows="5"></textarea>
+            <textarea class="form-textarea" id="cfg-ai-system_prompt" rows="5"></textarea>
           </div>
         </div>
       </div>
@@ -563,6 +725,33 @@
         </div>
       </div>
 
+      <div class="tab-panel" id="tab-intelligence">
+        <div class="card">
+          <div class="card-title">知识检索</div>
+          <div class="form-group"><label class="form-check"><input type="checkbox" id="cfg-knowledge-enabled">启用知识库增强回复</label></div>
+          <div class="form-row">
+            <div class="form-group"><label class="form-label">最多检索条数</label><input class="form-input" type="number" min="1" id="cfg-knowledge-retrieval_limit" value="5"></div>
+            <div class="form-group"><label class="form-label">最大上下文字符数</label><input class="form-input" type="number" min="100" id="cfg-knowledge-max_context_chars" value="6000"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">联网搜索</div>
+          <div class="form-row">
+            <div class="form-group"><label class="form-label">搜索服务商</label><select class="form-select" id="cfg-search-provider"><option value="disabled">禁用</option><option value="tavily">Tavily</option><option value="bing">Bing</option></select></div>
+            <div class="form-group"><label class="form-label">最大结果数</label><input class="form-input" type="number" min="1" id="cfg-search-max_results" value="5"></div>
+          </div>
+          <div class="form-group"><label class="form-label">API Key</label><input class="form-input" type="password" id="cfg-search-api_key" autocomplete="off" placeholder="搜索服务 API Key"></div>
+          <div class="form-group"><label class="form-label">API Endpoint（可选）</label><input class="form-input" id="cfg-search-endpoint" placeholder="使用服务商默认地址"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">发布策略</div>
+          <div class="form-row">
+            <div class="form-group"><label class="form-label">策略</label><select class="form-select" id="cfg-publishing-strategy"><option value="manual">手动审核</option><option value="mixed">混合发布</option><option value="automatic">自动发布</option></select></div>
+            <div class="form-group"><label class="form-label">自动发布最大风险分</label><input class="form-input" type="number" min="0" max="100" id="cfg-publishing-auto_publish_max_risk" value="20"><div class="form-hint">风险分不高于此值时允许自动发布，范围 0–100。</div></div>
+          </div>
+        </div>
+      </div>
+
       <div class="tab-panel" id="tab-auth">
         <div class="card">
           <div class="card-title">登录密码保护</div>
@@ -590,9 +779,76 @@
       </div>
     </div>
 
+    <!-- Knowledge -->
+    <div class="page" id="page-knowledge">
+      <div class="page-title"><span class="icon">▤</span><span class="page-heading">知识库<span class="page-description">维护视频资料，搜索并审核 AI 蒸馏结果</span></span></div>
+      <div class="stats-grid" id="knowledge-summary">
+        <div class="stat-card"><div class="stat-value">-</div><div class="stat-label">正在读取构建状态</div></div>
+      </div>
+      <div class="split-grid">
+        <div>
+          <div class="card">
+            <div class="card-title">视频内容</div>
+            <form onsubmit="saveKnowledgeVideo(event)">
+              <div class="form-row">
+                <div class="form-group"><label class="form-label">BVID</label><input class="form-input" id="knowledge-bvid" required placeholder="BV1xx411c7mD"></div>
+                <div class="form-group"><label class="form-label">视频标题</label><input class="form-input" id="knowledge-title" required placeholder="视频标题"></div>
+              </div>
+              <div class="form-group"><label class="form-label">视频内容</label><textarea class="form-textarea" id="knowledge-content" required rows="7" placeholder="字幕、简介或整理后的正文"></textarea></div>
+              <button class="btn btn-primary" type="submit">保存视频</button>
+            </form>
+          </div>
+          <div class="card">
+            <div class="card-title">补充来源</div>
+            <form onsubmit="saveKnowledgeSource(event)">
+              <div class="form-row">
+                <div class="form-group"><label class="form-label">来源标题（可选）</label><input class="form-input" id="source-title" placeholder="资料标题"></div>
+                <div class="form-group"><label class="form-label">来源 URL（可选）</label><input class="form-input" type="url" id="source-url" placeholder="https://..."></div>
+              </div>
+              <div class="form-group"><label class="form-label">内容</label><textarea class="form-textarea" id="source-content" required rows="5" placeholder="粘贴可靠的补充资料"></textarea></div>
+              <button class="btn btn-primary" type="submit">添加来源</button>
+            </form>
+          </div>
+        </div>
+        <div>
+          <div class="card">
+            <div class="card-title">联网检索</div>
+            <div class="form-group"><label class="form-label">搜索问题</label><input class="form-input" id="knowledge-query" placeholder="输入需要补充的知识点"></div>
+            <button class="btn btn-info" onclick="searchKnowledge()">搜索并蒸馏</button>
+            <div id="knowledge-search-result" style="margin-top:12px"></div>
+          </div>
+          <div class="card">
+            <div class="section-head"><div class="card-title">蒸馏审核</div><button class="btn btn-secondary" onclick="loadDistillations()">刷新</button></div>
+            <div id="distillation-list"><div class="empty-state">选择视频后查看待审核知识。</div></div>
+          </div>
+          <div class="card">
+            <div class="section-head"><div class="card-title">视频</div><button class="btn btn-secondary" onclick="loadKnowledge()">刷新</button></div>
+            <div class="item-list" id="knowledge-videos"><div class="empty-state">暂无视频</div></div>
+          </div>
+          <div class="card">
+            <div class="card-title">当前视频来源</div>
+            <div class="item-list" id="knowledge-sources"><div class="empty-state">选择或输入 BVID 查看来源</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Review -->
+    <div class="page" id="page-review">
+      <div class="page-title"><span class="icon">✓</span><span class="page-heading">审核队列<span class="page-description">编辑、批准或发布 AI 生成的评论回复</span></span></div>
+      <div class="card">
+        <div class="section-head">
+          <div><label class="form-label" for="draft-status">状态筛选</label><select class="form-select" id="draft-status" onchange="loadDrafts(1)" style="width:180px"><option value="">全部状态</option><option value="pending">待审核</option><option value="approved">已通过</option><option value="rejected">已拒绝</option><option value="published">已发布</option></select></div>
+          <button class="btn btn-secondary" onclick="loadDrafts(draftPage)">刷新</button>
+        </div>
+        <div id="draft-list"><div class="empty-state">暂无草稿</div></div>
+        <div class="pagination" id="draft-pagination"></div>
+      </div>
+    </div>
+
     <!-- Login -->
     <div class="page" id="page-login">
-      <div class="page-title"><span class="icon">🔑</span>扫码登录</div>
+      <div class="page-title"><span class="icon">◇</span><span class="page-heading">扫码登录<span class="page-description">连接需要运行机器人的 B站账号</span></span></div>
       <div class="card" style="max-width:500px">
         <div class="card-title">微信扫码登录 B 站</div>
         <p style="font-size:14px;color:var(--text2);margin-bottom:20px">
@@ -605,7 +861,7 @@
 
     <!-- History -->
     <div class="page" id="page-history">
-      <div class="page-title"><span class="icon">📝</span>回复历史</div>
+      <div class="page-title"><span class="icon">≡</span><span class="page-heading">回复历史<span class="page-description">查看已发布内容和对应原始评论</span></span></div>
       <div class="card">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
           <span id="history-total" style="color:var(--text2);font-size:14px">共 0 条记录</span>
@@ -630,7 +886,7 @@
 
     <!-- Logs -->
     <div class="page" id="page-logs">
-      <div class="page-title"><span class="icon">📋</span>实时日志</div>
+      <div class="page-title"><span class="icon">›_</span><span class="page-heading">实时日志<span class="page-description">定位抓取、模型和发布过程中的运行问题</span></span></div>
       <div class="card">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
           <div style="display:flex;gap:8px;align-items:center">
@@ -658,6 +914,8 @@
 const socket = io();
 let currentPage = 'dashboard';
 let historyPage = 1;
+let draftPage = 1;
+let selectedKnowledgeBvid = '';
 let allLogs = [];
 let configData = {};
 
@@ -715,6 +973,8 @@ function navigateTo(page) {
   currentPage = page;
   if (page === 'history') loadHistory(1);
   if (page === 'config') loadConfig();
+  if (page === 'knowledge') loadKnowledge();
+  if (page === 'review') loadDrafts(1);
 }
 
 // ── Tab 切换 ──
@@ -774,9 +1034,9 @@ function verifyLogin() {
   fetch('/api/bot/verify').then(r=>r.json()).then(d=>{
     if (d.valid) {
       const u = d.user_info || {};
-      el.innerHTML = `<div class="alert alert-success">✅ 登录有效 — ${u.name || ''} (UID: ${u.mid || ''})</div>`;
+      el.innerHTML = `<div class="alert alert-success">✅ 登录有效 — ${escHtml(u.name || '')} (UID: ${escHtml(u.mid || '')})</div>`;
     } else {
-      el.innerHTML = `<div class="alert alert-danger">❌ ${d.message}</div>`;
+      el.innerHTML = `<div class="alert alert-danger">❌ ${escHtml(d.message || '验证失败')}</div>`;
     }
   });
 }
@@ -827,8 +1087,8 @@ function changePassword() {
     body: JSON.stringify({action: 'change', old_password: oldPwd, new_password: newPwd})
   }).then(r=>r.json()).then(d=>{
     const el = document.getElementById('auth-result');
-    if (d.ok) { el.innerHTML = '<div class="alert alert-success">' + d.message + '</div>'; loadConfig(); }
-    else { el.innerHTML = '<div class="alert alert-danger">' + d.message + '</div>'; }
+    if (d.ok) { el.innerHTML = '<div class="alert alert-success">' + escHtml(d.message) + '</div>'; loadConfig(); }
+    else { el.innerHTML = '<div class="alert alert-danger">' + escHtml(d.message) + '</div>'; }
     setTimeout(()=> el.innerHTML = '', 4000);
   });
 }
@@ -844,7 +1104,7 @@ function generatePassword() {
       el.innerHTML = '<div class="alert alert-success">密码已生成并保存！<br><strong>新密码: ' + escHtml(d.password) + '</strong><br><span style="font-size:12px;color:var(--text2)">请立即复制保存，关闭后无法再次查看！</span></div>';
       loadConfig();
     } else {
-      el.innerHTML = '<div class="alert alert-danger">' + d.message + '</div>';
+      el.innerHTML = '<div class="alert alert-danger">' + escHtml(d.message) + '</div>';
     }
   });
 }
@@ -856,8 +1116,8 @@ function clearPassword() {
     body: JSON.stringify({action: 'clear'})
   }).then(r=>r.json()).then(d=>{
     const el = document.getElementById('auth-result');
-    if (d.ok) { el.innerHTML = '<div class="alert alert-success">' + d.message + '</div>'; loadConfig(); }
-    else { el.innerHTML = '<div class="alert alert-danger">' + d.message + '</div>'; }
+    if (d.ok) { el.innerHTML = '<div class="alert alert-success">' + escHtml(d.message) + '</div>'; loadConfig(); }
+    else { el.innerHTML = '<div class="alert alert-danger">' + escHtml(d.message) + '</div>'; }
     setTimeout(()=> el.innerHTML = '', 4000);
   });
 }
@@ -890,13 +1150,14 @@ function loadConfig() {
     set('cfg-bilibili-max_video_pages', b.max_video_pages);
     set('cfg-bilibili-auto_refresh_cookie', b.auto_refresh_cookie);
 
-    const ds = cfg.deepseek || {};
-    set('cfg-deepseek-api_key', ds.api_key);
-    set('cfg-deepseek-base_url', ds.base_url);
-    set('cfg-deepseek-model', ds.model);
-    set('cfg-deepseek-max_tokens', ds.max_tokens);
-    set('cfg-deepseek-temperature', ds.temperature);
-    set('cfg-deepseek-system_prompt', ds.system_prompt);
+    const ai = cfg.ai || cfg.deepseek || {};
+    set('cfg-ai-api_key', ai.api_key);
+    set('cfg-ai-base_url', ai.base_url);
+    set('cfg-ai-model', ai.model);
+    set('cfg-ai-max_tokens', ai.max_tokens);
+    set('cfg-ai-temperature', ai.temperature);
+    set('cfg-ai-json_mode', ai.json_mode);
+    set('cfg-ai-system_prompt', ai.system_prompt);
 
     const r = cfg.reply || {};
     set('cfg-reply-enabled', r.enabled);
@@ -948,6 +1209,19 @@ function loadConfig() {
     set('cfg-logging-file', lg.file);
     set('cfg-logging-console', lg.console);
 
+    const kn = cfg.knowledge || {};
+    set('cfg-knowledge-enabled', kn.enabled);
+    set('cfg-knowledge-retrieval_limit', kn.retrieval_limit);
+    set('cfg-knowledge-max_context_chars', kn.max_context_chars);
+    const se = cfg.search || {};
+    set('cfg-search-provider', se.provider);
+    set('cfg-search-api_key', se.api_key);
+    set('cfg-search-endpoint', se.endpoint);
+    set('cfg-search-max_results', se.max_results);
+    const pu = cfg.publishing || {};
+    set('cfg-publishing-strategy', pu.strategy);
+    set('cfg-publishing-auto_publish_max_risk', pu.auto_publish_max_risk);
+
     const au = cfg.auth || {};
     set('cfg-auth-enabled', au.enabled);
     document.getElementById('auth-actions').style.display = au.enabled ? 'flex' : 'none';
@@ -974,13 +1248,14 @@ function saveConfig() {
       max_video_pages: get('cfg-bilibili-max_video_pages'),
       auto_refresh_cookie: get('cfg-bilibili-auto_refresh_cookie'),
     },
-    deepseek: {
-      api_key: get('cfg-deepseek-api_key'),
-      base_url: get('cfg-deepseek-base_url'),
-      model: get('cfg-deepseek-model'),
-      max_tokens: get('cfg-deepseek-max_tokens'),
-      temperature: get('cfg-deepseek-temperature'),
-      system_prompt: get('cfg-deepseek-system_prompt'),
+    ai: {
+      api_key: get('cfg-ai-api_key'),
+      base_url: get('cfg-ai-base_url'),
+      model: get('cfg-ai-model'),
+      max_tokens: get('cfg-ai-max_tokens'),
+      temperature: get('cfg-ai-temperature'),
+      json_mode: get('cfg-ai-json_mode'),
+      system_prompt: get('cfg-ai-system_prompt'),
     },
     reply: {
       enabled: get('cfg-reply-enabled'),
@@ -1032,6 +1307,21 @@ function saveConfig() {
       file: get('cfg-logging-file'),
       console: get('cfg-logging-console'),
     },
+    knowledge: {
+      enabled: get('cfg-knowledge-enabled'),
+      retrieval_limit: get('cfg-knowledge-retrieval_limit'),
+      max_context_chars: get('cfg-knowledge-max_context_chars'),
+    },
+    search: {
+      provider: get('cfg-search-provider'),
+      api_key: get('cfg-search-api_key'),
+      endpoint: get('cfg-search-endpoint'),
+      max_results: get('cfg-search-max_results'),
+    },
+    publishing: {
+      strategy: get('cfg-publishing-strategy'),
+      auto_publish_max_risk: get('cfg-publishing-auto_publish_max_risk'),
+    },
     auth: {
       enabled: get('cfg-auth-enabled'),
     },
@@ -1044,6 +1334,181 @@ function saveConfig() {
   }).then(r=>r.json()).then(d=>{
     showToast(d.message, d.ok ? 'success' : 'error');
   });
+}
+
+// ── 知识库与审核 ──
+async function apiRequest(url, options = {}) {
+  try {
+    const response = await fetch(url, options);
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.ok === false) throw new Error(data.message || `请求失败 (${response.status})`);
+    return data;
+  } catch (error) {
+    showToast(error.message || '网络请求失败', 'error');
+    throw error;
+  }
+}
+
+function listFrom(data, keys) {
+  for (const key of keys) if (Array.isArray(data[key])) return data[key];
+  if (data.data && !Array.isArray(data.data)) {
+    for (const key of keys) if (Array.isArray(data.data[key])) return data.data[key];
+  }
+  return Array.isArray(data.data) ? data.data : [];
+}
+
+async function loadKnowledge() {
+  try {
+    const [videosData, summary] = await Promise.all([
+      apiRequest('/api/knowledge/videos'), apiRequest('/api/knowledge/summary')
+    ]);
+    const videos = listFrom(videosData, ['videos', 'items']);
+    document.getElementById('knowledge-videos').innerHTML = videos.length ? videos.map(v => {
+      const bvid = v.bvid || v.id || '';
+      return `<button class="list-item" style="color:inherit;text-align:left;cursor:pointer;width:100%" onclick="selectKnowledgeVideo('${escJs(bvid)}')"><div class="list-title">${escHtml(v.title || '未命名视频')}</div><div class="list-meta">${escHtml(bvid)}</div></button>`;
+    }).join('') : '<div class="empty-state">暂无视频知识，请先添加。</div>';
+    renderKnowledgeSummary(summary);
+    const inputBvid = document.getElementById('knowledge-bvid').value.trim();
+    if (inputBvid || selectedKnowledgeBvid) {
+      const bvid = inputBvid || selectedKnowledgeBvid;
+      await Promise.all([loadKnowledgeSources(bvid), loadDistillations(bvid)]);
+    }
+  } catch (_) {}
+}
+
+function renderKnowledgeSummary(data) {
+  const summary = data.summary || data.data || data;
+  const values = [
+    ['视频', summary.video_count ?? summary.videos ?? 0],
+    ['来源', summary.source_count ?? summary.sources ?? 0],
+    ['知识片段', summary.chunk_count ?? summary.knowledge_chunks ?? summary.chunks ?? 0],
+    ['待蒸馏审核', summary.distillations_by_status?.pending ?? 0]
+  ];
+  document.getElementById('knowledge-summary').innerHTML = values.map(([label, value]) => `<div class="stat-card"><div class="stat-value" style="font-size:${label === '构建状态' ? '18px' : '28px'}">${escHtml(value)}</div><div class="stat-label">${escHtml(label)}</div></div>`).join('');
+}
+
+function selectKnowledgeVideo(bvid) {
+  selectedKnowledgeBvid = bvid;
+  document.getElementById('knowledge-bvid').value = bvid;
+  loadKnowledgeSources(bvid);
+  loadDistillations(bvid);
+}
+
+async function loadKnowledgeSources(bvid) {
+  if (!bvid) return;
+  try {
+    const data = await apiRequest('/api/knowledge/sources?bvid=' + encodeURIComponent(bvid));
+    const sources = listFrom(data, ['sources', 'items']);
+    document.getElementById('knowledge-sources').innerHTML = sources.length ? sources.map(s => `<div class="list-item"><div class="list-title">${escHtml(s.title || '手动来源')}</div>${safeHttpUrl(s.url) ? `<div class="list-meta"><a href="${escAttr(safeHttpUrl(s.url))}" target="_blank" rel="noopener noreferrer">${escHtml(s.url)}</a></div>` : ''}<div class="list-meta">${escHtml(s.content || s.snippet || '')}</div></div>`).join('') : '<div class="empty-state">此视频暂无补充来源。</div>';
+  } catch (_) {}
+}
+
+async function saveKnowledgeVideo(event) {
+  event.preventDefault();
+  const payload = { bvid: document.getElementById('knowledge-bvid').value.trim(), title: document.getElementById('knowledge-title').value.trim(), content: document.getElementById('knowledge-content').value.trim() };
+  try {
+    const data = await apiRequest('/api/knowledge/videos', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+    selectedKnowledgeBvid = payload.bvid;
+    showToast(data.message || '视频知识已保存', 'success');
+    loadKnowledge();
+  } catch (_) {}
+}
+
+async function saveKnowledgeSource(event) {
+  event.preventDefault();
+  const bvid = document.getElementById('knowledge-bvid').value.trim();
+  if (!bvid) return showToast('请先选择或输入 BVID', 'error');
+  const payload = { bvid, title: document.getElementById('source-title').value.trim(), url: document.getElementById('source-url').value.trim(), content: document.getElementById('source-content').value.trim() };
+  try {
+    const data = await apiRequest('/api/knowledge/sources', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+    showToast(data.message || '来源已添加', 'success');
+    document.getElementById('source-content').value = '';
+    loadKnowledgeSources(bvid);
+    loadKnowledge();
+  } catch (_) {}
+}
+
+async function searchKnowledge() {
+  const bvid = document.getElementById('knowledge-bvid').value.trim();
+  const query = document.getElementById('knowledge-query').value.trim();
+  if (!bvid || !query) return showToast('请选择视频并输入搜索问题', 'error');
+  const result = document.getElementById('knowledge-search-result');
+  result.textContent = '正在搜索并由 AI 蒸馏资料...';
+  try {
+    const data = await apiRequest('/api/knowledge/search', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({bvid, query})});
+    result.innerHTML = `<div class="alert alert-success">${escHtml(data.message || '蒸馏完成，请审核')}</div>`;
+    await Promise.all([loadKnowledgeSources(bvid), loadDistillations(bvid), loadKnowledge()]);
+  } catch (_) { result.textContent = ''; }
+}
+
+async function loadDistillations(bvid = '') {
+  bvid = bvid || document.getElementById('knowledge-bvid').value.trim() || selectedKnowledgeBvid;
+  const list = document.getElementById('distillation-list');
+  if (!bvid) {
+    list.innerHTML = '<div class="empty-state">选择视频后查看待审核知识。</div>';
+    return;
+  }
+  try {
+    const data = await apiRequest(`/api/knowledge/distillations?bvid=${encodeURIComponent(bvid)}`);
+    const items = listFrom(data, ['distillations', 'items']);
+    list.innerHTML = items.length ? items.map(renderDistillation).join('') : '<div class="empty-state">暂无蒸馏记录。</div>';
+  } catch (_) {}
+}
+
+function renderDistillation(item) {
+  const statusLabels = {pending:'待审核', approved:'已入库', rejected:'已拒绝'};
+  const badgeClass = item.status === 'approved' ? 'badge-green' : item.status === 'rejected' ? 'badge-red' : 'badge-yellow';
+  const conflicts = (item.conflicts || []).length
+    ? `<div class="alert alert-error" style="margin:10px 0"><strong>来源冲突</strong><br>${(item.conflicts || []).map(escHtml).join('<br>')}</div>` : '';
+  const sources = (item.source_ids || []).map(id => `#${escHtml(id)}`).join('、');
+  const editable = item.status === 'pending' ? '' : 'disabled';
+  const actions = item.status === 'pending' ? `<div class="draft-actions"><button class="btn btn-danger" onclick="distillationAction(${Number(item.id)},'reject')">拒绝</button><button class="btn btn-success" onclick="distillationAction(${Number(item.id)},'approve')">批准入库</button></div>` : '';
+  return `<article class="draft-card"><div class="draft-head"><div><strong>${escHtml(item.topic)}</strong><div class="list-meta">问题：${escHtml(item.query)} · 来源 ${sources}</div></div><div><span class="badge ${badgeClass}">${escHtml(statusLabels[item.status] || item.status)}</span> <span class="badge badge-green">可信度 ${Math.round(Number(item.confidence || 0) * 100)}%</span></div></div>${conflicts}<label class="form-label" for="distillation-content-${Number(item.id)}">蒸馏正文</label><textarea class="form-textarea" id="distillation-content-${Number(item.id)}" rows="9" ${editable}>${escHtml(item.formatted_content || '')}</textarea>${actions}</article>`;
+}
+
+async function distillationAction(id, action) {
+  const body = action === 'approve'
+    ? {content: document.getElementById(`distillation-content-${id}`).value}
+    : {};
+  try {
+    const data = await apiRequest(`/api/knowledge/distillations/${id}/${action}`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+    showToast(data.message || (action === 'approve' ? '已批准入库' : '已拒绝'), 'success');
+    await Promise.all([loadDistillations(), loadKnowledgeSources(document.getElementById('knowledge-bvid').value.trim()), loadKnowledge()]);
+  } catch (_) {}
+}
+
+async function loadDrafts(page = 1) {
+  draftPage = page;
+  const status = document.getElementById('draft-status').value;
+  try {
+    const data = await apiRequest(`/api/drafts?status=${encodeURIComponent(status)}&page=${page}`);
+    const drafts = listFrom(data, ['drafts', 'items']);
+    const list = document.getElementById('draft-list');
+    list.innerHTML = drafts.length ? drafts.map(renderDraft).join('') : '<div class="empty-state">当前筛选条件下暂无草稿。</div>';
+    const totalPages = data.total_pages || data.pages || data.pagination?.pages || 1;
+    document.getElementById('draft-pagination').innerHTML = `${page > 1 ? `<button class="page-btn" onclick="loadDrafts(${page - 1})">‹</button>` : ''}<span style="color:var(--text2);font-size:13px">第 ${page} / ${totalPages} 页</span>${page < totalPages ? `<button class="page-btn" onclick="loadDrafts(${page + 1})">›</button>` : ''}`;
+  } catch (_) {}
+}
+
+function renderDraft(draft) {
+  const id = draft.id;
+  const status = draft.status || 'pending';
+  const risk = draft.risk_score ?? draft.risk ?? '-';
+  const badgeClass = status === 'published' || status === 'approved' ? 'badge-green' : status === 'rejected' ? 'badge-red' : 'badge-yellow';
+  return `<article class="draft-card"><div class="draft-head"><div><strong>${escHtml(draft.author || draft.user || '匿名用户')}</strong><div class="list-meta">${escHtml(draft.video_title || draft.video || draft.bvid || '未知视频')}</div></div><div><span class="badge ${badgeClass}">${escHtml(status)}</span> <span class="badge badge-red">风险 ${escHtml(risk)}</span></div></div><div class="draft-comment">${escHtml(draft.comment || draft.comment_content || '')}</div><label class="form-label" for="draft-content-${escAttr(id)}">回复内容</label><textarea class="form-textarea" id="draft-content-${escAttr(id)}" rows="3">${escHtml(draft.content || draft.response || draft.reply_content || '')}</textarea><div class="draft-actions"><button class="btn btn-danger" onclick="draftAction('${escJs(id)}','reject')">拒绝</button><button class="btn btn-success" onclick="draftAction('${escJs(id)}','approve',true)">通过</button><button class="btn btn-info" onclick="draftAction('${escJs(id)}','publish',true)">发布</button></div></article>`;
+}
+
+async function draftAction(id, action, includeContent = false) {
+  const options = {method:'POST'};
+  if (includeContent) {
+    options.headers = {'Content-Type':'application/json'};
+    options.body = JSON.stringify({content: document.getElementById(`draft-content-${id}`).value});
+  }
+  try {
+    const data = await apiRequest(`/api/drafts/${encodeURIComponent(id)}/${action}`, options);
+    showToast(data.message || '操作成功', 'success');
+    loadDrafts(draftPage);
+  } catch (_) {}
 }
 
 // ── 扫码登录 ──
@@ -1061,7 +1526,7 @@ function generateQR() {
           <div style="font-size:12px;color:var(--text2);margin-top:8px">请使用 B站 App 扫码，有效期 3 分钟</div>
         </div>`;
     } else {
-      container.innerHTML = `<div class="alert alert-danger">${d.message}</div>`;
+      container.innerHTML = `<div class="alert alert-danger">${escHtml(d.message || '生成失败')}</div>`;
       btn.disabled = false;
     }
   }).catch(e => {
@@ -1147,7 +1612,16 @@ function showToast(msg, type='info') {
 
 // ── 工具 ──
 function escHtml(str) {
-  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;');
+  return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function escAttr(str) { return escHtml(str).replace(/`/g, '&#96;'); }
+function escJs(str) { return String(str ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r/g, '\\r').replace(/\n/g, '\\n').replace(/</g, '\\x3c'); }
+function safeHttpUrl(value) {
+  if (!String(value || '').trim()) return '';
+  try {
+    const url = new URL(String(value).trim());
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : '';
+  } catch (_) { return ''; }
 }
 
 // ── 初始化 ──

@@ -34,6 +34,11 @@ from bot import (
     COOKIE_FILE,
     VIDEO_CACHE_FILE,
 )
+from ai_client import resolve_ai_config
+from distillation import DistillationError, distill_sources, format_distillation
+from knowledge import chunk_text
+from search_providers import SearchProviderError, search_web
+from storage import DISTILLATION_STATUSES, DRAFT_STATUSES
 
 # ─────────────────────────────────────────────
 #  Flask + SocketIO
@@ -87,6 +92,8 @@ def load_config() -> dict:
     try:
         with open(CONFIG_FILE, "r", encoding="utf-8") as f:
             cfg = toml.load(f)
+        if "ai" not in cfg and isinstance(cfg.get("deepseek"), dict):
+            cfg["ai"] = cfg.pop("deepseek")
 
         def merge(base, override):
             result = dict(base)
@@ -422,6 +429,224 @@ def api_videos():
     return jsonify({"ok": True, "count": len(bot.cached_videos), "videos": bot.cached_videos[:50]})
 
 
+def _positive_int(value, default: int, maximum: int = 100) -> int:
+    try:
+        return max(1, min(int(value), maximum))
+    except (TypeError, ValueError):
+        return default
+
+
+@app.route("/api/knowledge/summary", methods=["GET"])
+def api_knowledge_summary():
+    return jsonify({"ok": True, **get_bot().storage.summary_counts()})
+
+
+@app.route("/api/knowledge/videos", methods=["GET", "POST"])
+def api_knowledge_videos():
+    storage = get_bot().storage
+    if request.method == "GET":
+        page = _positive_int(request.args.get("page"), 1)
+        return jsonify({"ok": True, "data": storage.list_videos(page=page, page_size=50)})
+
+    data = request.get_json(silent=True) or {}
+    try:
+        bvid = str(data.get("bvid", "")).strip()
+        title = str(data.get("title", "")).strip() or bvid
+        content = str(data.get("content", ""))
+        video = storage.upsert_video(bvid, title, content)
+        cfg = load_config().get("knowledge", {})
+        chunks = chunk_text(
+            content,
+            int(cfg.get("chunk_size", 800)),
+            int(cfg.get("chunk_overlap", 120)),
+        )
+        storage.replace_video_chunks(video["id"], chunks)
+        return jsonify({"ok": True, "video": video, "chunks": len(chunks)})
+    except (ValueError, KeyError) as exc:
+        return jsonify({"ok": False, "message": str(exc)}), 400
+
+
+@app.route("/api/knowledge/sources", methods=["GET", "POST"])
+def api_knowledge_sources():
+    storage = get_bot().storage
+    if request.method == "GET":
+        bvid = str(request.args.get("bvid", "")).strip()
+        video = storage.get_video(bvid) if bvid else None
+        if bvid and not video:
+            return jsonify({"ok": False, "message": "视频不存在"}), 404
+        return jsonify({
+            "ok": True,
+            "data": storage.list_sources(video_id=video["id"] if video else None),
+        })
+
+    data = request.get_json(silent=True) or {}
+    try:
+        video = storage.get_video(str(data.get("bvid", "")).strip())
+        if not video:
+            return jsonify({"ok": False, "message": "请先保存视频文案"}), 400
+        title = str(data.get("title", "")).strip() or "手动资料"
+        content = str(data.get("content", ""))
+        url = str(data.get("url", "")).strip() or None
+        source = storage.create_source(
+            "manual", title, content, url, video_id=video["id"]
+        )
+        cfg = load_config().get("knowledge", {})
+        chunks = chunk_text(
+            content,
+            int(cfg.get("chunk_size", 800)),
+            int(cfg.get("chunk_overlap", 120)),
+        )
+        storage.replace_source_chunks(source["id"], chunks)
+        return jsonify({"ok": True, "source": source, "chunks": len(chunks)})
+    except (ValueError, KeyError) as exc:
+        return jsonify({"ok": False, "message": str(exc)}), 400
+
+
+@app.route("/api/knowledge/search", methods=["POST"])
+def api_knowledge_search():
+    data = request.get_json(silent=True) or {}
+    storage = get_bot().storage
+    video = storage.get_video(str(data.get("bvid", "")).strip())
+    if not video:
+        return jsonify({"ok": False, "message": "请先保存视频文案"}), 400
+    query = str(data.get("query", "")).strip()
+    cfg = load_config()
+    search_cfg = cfg.get("search", {})
+    saved = []
+    try:
+        results = search_web(query, search_cfg, int(search_cfg.get("max_results", 5)))
+        if not results:
+            return jsonify({"ok": False, "message": "联网搜索未返回可用资料"}), 400
+        for result in results:
+            source = storage.create_source(
+                "web", result.title or result.url, result.content, result.url,
+                video_id=video["id"],
+            )
+            saved.append(source)
+        distilled = distill_sources(query, saved, resolve_ai_config(cfg))
+        record = storage.create_distillation(
+            video["id"], query,
+            topic=distilled["topic"], summary=distilled["summary"],
+            facts=distilled["facts"], limitations=distilled["limitations"],
+            conflicts=distilled["conflicts"], source_ids=distilled["source_ids"],
+            confidence=distilled["confidence"],
+        )
+        return jsonify({
+            "ok": True,
+            "message": "蒸馏完成，请审核后入库",
+            "sources": [{"id": item["id"], "title": item["title"], "url": item["url"]} for item in saved],
+            "distillation": {**record, "formatted_content": format_distillation(record)},
+        })
+    except (ValueError, SearchProviderError, DistillationError) as exc:
+        if saved:
+            storage.delete_sources([item["id"] for item in saved])
+        return jsonify({"ok": False, "message": str(exc)}), 400
+
+
+@app.route("/api/knowledge/distillations", methods=["GET"])
+def api_knowledge_distillations():
+    storage = get_bot().storage
+    bvid = str(request.args.get("bvid", "")).strip()
+    status = str(request.args.get("status", "")).strip() or None
+    if status and status not in DISTILLATION_STATUSES:
+        return jsonify({"ok": False, "message": "无效的蒸馏状态"}), 400
+    video = storage.get_video(bvid) if bvid else None
+    if bvid and not video:
+        return jsonify({"ok": False, "message": "视频不存在"}), 404
+    data = storage.list_distillations(
+        video_id=video["id"] if video else None, status=status,
+        page=_positive_int(request.args.get("page"), 1), page_size=30,
+    )
+    return jsonify({
+        "ok": True,
+        "data": [{**item, "formatted_content": format_distillation(item)} for item in data],
+    })
+
+
+@app.route("/api/knowledge/distillations/<int:distillation_id>/approve", methods=["POST"])
+def api_knowledge_distillation_approve(distillation_id: int):
+    storage = get_bot().storage
+    data = request.get_json(silent=True) or {}
+    item = storage.get_distillation(distillation_id)
+    if not item:
+        return jsonify({"ok": False, "message": "蒸馏记录不存在"}), 404
+    content = str(data.get("content", "")).strip() or format_distillation(item)
+    cfg = load_config().get("knowledge", {})
+    chunks = chunk_text(
+        content, int(cfg.get("chunk_size", 800)), int(cfg.get("chunk_overlap", 120))
+    )
+    try:
+        approved = storage.approve_distillation(distillation_id, content, chunks)
+        return jsonify({"ok": True, "message": "蒸馏知识已批准入库", "distillation": approved})
+    except (KeyError, ValueError) as exc:
+        return jsonify({"ok": False, "message": str(exc)}), 400
+
+
+@app.route("/api/knowledge/distillations/<int:distillation_id>/reject", methods=["POST"])
+def api_knowledge_distillation_reject(distillation_id: int):
+    try:
+        rejected = get_bot().storage.reject_distillation(distillation_id)
+        return jsonify({"ok": True, "message": "蒸馏结果已拒绝", "distillation": rejected})
+    except (KeyError, ValueError) as exc:
+        return jsonify({"ok": False, "message": str(exc)}), 400
+
+
+@app.route("/api/drafts", methods=["GET"])
+def api_drafts():
+    status = str(request.args.get("status", "pending")).strip() or None
+    if status and status not in DRAFT_STATUSES:
+        return jsonify({"ok": False, "message": "无效的草稿状态"}), 400
+    page = _positive_int(request.args.get("page"), 1)
+    data = get_bot().storage.list_drafts(status=status, page=page, page_size=30)
+    return jsonify({"ok": True, "page": page, "data": data})
+
+
+@app.route("/api/drafts/<int:draft_id>/approve", methods=["POST"])
+def api_draft_approve(draft_id: int):
+    bot = get_bot()
+    data = request.get_json(silent=True) or {}
+    try:
+        if str(data.get("content", "")).strip():
+            bot.storage.update_draft(draft_id, str(data["content"]))
+        draft = bot.storage.transition_draft(draft_id, "approved")
+        return jsonify({"ok": True, "draft": draft})
+    except (KeyError, ValueError) as exc:
+        return jsonify({"ok": False, "message": str(exc)}), 400
+
+
+@app.route("/api/drafts/<int:draft_id>/reject", methods=["POST"])
+def api_draft_reject(draft_id: int):
+    try:
+        draft = get_bot().storage.transition_draft(draft_id, "rejected")
+        return jsonify({"ok": True, "draft": draft})
+    except (KeyError, ValueError) as exc:
+        return jsonify({"ok": False, "message": str(exc)}), 400
+
+
+@app.route("/api/drafts/<int:draft_id>/publish", methods=["POST"])
+def api_draft_publish(draft_id: int):
+    bot = get_bot()
+    data = request.get_json(silent=True) or {}
+    try:
+        draft = bot.storage.get_draft(draft_id)
+        if not draft:
+            raise KeyError(f"草稿 {draft_id} 不存在")
+        if draft["status"] == "pending":
+            if str(data.get("content", "")).strip():
+                bot.storage.update_draft(draft_id, str(data["content"]))
+            bot.storage.transition_draft(draft_id, "approved")
+        elif str(data.get("content", "")).strip() and draft["status"] in {"approved", "failed"}:
+            bot.storage.update_draft(draft_id, str(data["content"]))
+        success = bot.publish_draft(draft_id)
+        return jsonify({
+            "ok": success,
+            "message": "发布成功" if success else "发布失败，可稍后重试",
+            "draft": bot.storage.get_draft(draft_id),
+        }), 200 if success else 502
+    except (KeyError, ValueError) as exc:
+        return jsonify({"ok": False, "message": str(exc)}), 400
+
+
 # ─────────────────────────────────────────────
 #  SocketIO 事件
 # ─────────────────────────────────────────────
@@ -455,20 +680,20 @@ def main():
     # 检测配置是否完整，自动启动机器人
     cfg = load_config()
     cookie = cfg.get("bilibili", {}).get("cookie", "")
-    api_key = cfg.get("deepseek", {}).get("api_key", "")
+    api_key = resolve_ai_config(cfg).get("api_key", "")
     auth_enabled = cfg.get("auth", {}).get("enabled", False)
 
     if auth_enabled:
-        print("🔒 登录密码保护已启用")
+        print("登录密码保护已启用")
     else:
-        print("⚠️  未启用登录密码保护，建议在配置 > 安全中设置密码")
+        print("未启用登录密码保护，建议在配置 > 安全中设置密码")
 
     if cookie and api_key:
         print("检测到有效配置，自动启动机器人...")
         if bot.start():
-            print("✓ 机器人已自动启动")
+            print("机器人已自动启动")
         else:
-            print("✗ 机器人启动失败")
+            print("机器人启动失败")
     else:
         print("提示: 请在 Web UI 中完成配置后启动")
 

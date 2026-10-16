@@ -42,20 +42,43 @@ expire_time = 43200
 # 缓存文件路径
 cache_file = "video_cache.json"
 
-# DeepSeek API配置
-[deepseek]
-# DeepSeek API密钥
+# OpenAI Chat Completions 兼容接口配置
+[ai]
+# API 密钥
 api_key = "sk-xxx"
-# API基础URL
-base_url = "https://api.deepseek.com"
-# 使用的模型
-model = "deepseek-flash"
+# Base URL，也可直接填写完整的 /chat/completions 地址
+base_url = "https://api.openai.com/v1"
+# 服务支持的模型名称
+model = "gpt-4o-mini"
 # 最大回复长度
 max_tokens = 500
 # 温度参数（0-1，控制回复的随机性）
 temperature = 0.7
+# 蒸馏时发送 response_format=json_object；兼容站不支持时设为 false
+json_mode = false
 # 系统提示词（定义AI的角色和行为）
 system_prompt = "你是一个友善的B站游戏区Minecraft UP主，请对评论做出自然、友好的回复。回复要简洁明了，控制在100字以内。"
+
+# 知识库配置
+[knowledge]
+enabled = true
+retrieval_limit = 6
+max_context_chars = 5000
+chunk_size = 800
+chunk_overlap = 120
+
+# 联网搜索配置（provider: disabled / tavily / bing）
+[search]
+provider = "disabled"
+api_key = ""
+endpoint = ""
+timeout = 15
+max_results = 5
+
+# 发布策略（strategy: manual / mixed / automatic）
+[publishing]
+strategy = "manual"
+auto_publish_max_risk = 20
 
 # 回复配置
 [reply]

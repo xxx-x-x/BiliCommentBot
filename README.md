@@ -7,7 +7,11 @@
 ![最新发行版](https://img.shields.io/github/v/release/Janson20/BiliCommentBot)
 ![议题](https://img.shields.io/github/issues/Janson20/BiliCommentBot)
 
-使用 DeepSeek API 自动回复 B 站账号下视频新增评论的 Python 机器人，**现已集成完整的 Web UI 管理界面**。
+使用 OpenAI Chat Completions 兼容接口自动回复 B 站账号下视频新增评论的 Python 机器人，**现已集成完整的 Web UI 管理界面**。
+
+现支持按 BV 号维护视频文案与补充资料、使用 Tavily/Bing 联网搜索构建本地 SQLite 知识库，并在回复发布前进入可编辑的审核队列。发布策略可选择手动审核、低风险自动发布或全部自动发布。
+
+联网资料采用“搜索 → AI 结构化蒸馏 → 人工审核 → 正式入库”流程。蒸馏结果包含摘要、事实、限制、来源冲突、来源引用和可信度；未批准或已拒绝的结果不会进入回复检索。
 
 ## 功能特性
 
@@ -15,7 +19,7 @@
 - 🌐 **Web UI 管理界面**：启动后自动打开浏览器，所有功能通过图形界面操作
 - 🤖 自动监控 B 站视频的新增评论
 - 🎯 **仅回复指定视频**：支持配置只回复某个特定视频的评论
-- 🧠 使用 DeepSeek API 生成智能回复
+- 🧠 使用 OpenAI 兼容模型生成智能回复
 - 📝 **链式回复支持（楼中楼）**：监控并回复主评论下的子评论，实现多层对话互动
 - 👍 支持自动点赞评论（可选）
 - 🔥 **回复后点赞用户视频**：可自动点赞评论用户的最新视频
@@ -207,7 +211,7 @@ docker run -d \
 ### 3. 配置并启动
 
 1. **获取凭证**：在 Web UI 的「登录」页面，点击「扫码登录」，用 B 站 APP 扫描二维码获取 Cookie
-2. **配置 DeepSeek API**：在「配置」→「DeepSeek」填入你的 API 密钥
+2. **配置 AI API**：在「配置」→「AI 模型」填入你的 API 密钥
 3. **启动机器人**：在「控制台」页面点击「启动机器人」
 4. **查看日志**：在「实时日志」页面监控运行状态
 
@@ -216,8 +220,10 @@ docker run -d \
 | 页面 | 功能说明 |
 |------|----------|
 | **📊 控制台** | 机器人启动/停止控制、登录状态验证、实时统计（回复数/视频数/状态）、清空缓存 |
-| **⚙️ 配置** | 6个分类 Tab：B站、DeepSeek、回复策略、频率控制、缓存、日志 —— 支持热更新 |
+| **⚙️ 配置** | 6个分类 Tab：B站、AI 模型、回复策略、频率控制、缓存、日志 —— 支持热更新 |
 | **🔑 登录** | 扫码登录获取 Cookie，登录成功后自动写入配置 |
+| **📚 知识库** | 维护视频文案和补充资料，通过 Tavily/Bing 搜索并由 AI 蒸馏，审核后入库 |
+| **✅ 审核队列** | 编辑、批准、拒绝或发布 AI 回复草稿，并显示风险分 |
 | **📝 历史记录** | 分页查看所有回复历史，支持清空 |
 | **📋 实时日志** | WebSocket 实时推送日志，可按级别过滤（INFO/WARNING/ERROR/DEBUG），支持自动滚动 |
 
@@ -238,13 +244,13 @@ docker run -d \
 | `max_comment_pages` | 获取评论的最大页数 | 10 |
 | `max_video_pages` | 获取视频列表的最大页数 | 10 |
 
-### DeepSeek API 配置
+### AI 模型配置
 
 | 配置项 | 说明 | 默认值 |
 |--------|------|--------|
-| `api_key` | DeepSeek API 密钥 | - |
-| `base_url` | API 基础 URL | https://api.deepseek.com |
-| `model` | 使用的模型 | deepseek-flash |
+| `api_key` | OpenAI 兼容接口 API Key | - |
+| `base_url` | API Base URL 或完整 Chat Completions 地址 | https://api.openai.com/v1 |
+| `model` | 兼容服务提供的模型名称 | gpt-4o-mini |
 | `max_tokens` | 最大回复长度 | 200 |
 | `temperature` | 温度参数（0-1） | 0.7 |
 | `system_prompt` | 系统提示词，定义 AI 回复风格 | 友善的 B 站 UP 主 |
@@ -325,10 +331,10 @@ cookie_refresh_interval = 30
 max_comment_pages = 10
 max_video_pages = 10
 
-[deepseek]
+[ai]
 api_key = "sk-xxx"
-base_url = "https://api.deepseek.com"
-model = "deepseek-flash"
+base_url = "https://api.openai.com/v1"
+model = "gpt-4o-mini"
 max_tokens = 200
 temperature = 0.7
 system_prompt = "你是一个友善的B站游戏区Minecraft UP主，请对评论做出自然、友好的回复。回复要简洁明了，控制在100字以内。"
@@ -391,9 +397,9 @@ console = true
 2. 查看 URL 中的数字部分（如：space.bilibili.com/123456789）
 3. 这个数字就是你的用户 ID
 
-### 获取 DeepSeek API 密钥
+### 获取 AI API 密钥
 
-1. 访问 [DeepSeek 官网](https://platform.deepseek.com/)
+1. 选择任一支持 OpenAI Chat Completions 协议的模型服务
 2. 注册并登录
 3. 在 API 管理页面创建新的 API 密钥
 4. 将密钥填入配置
@@ -499,9 +505,9 @@ console = true
 - 原因：B 站 API 返回格式变更或响应被压缩
 - 解决：检查日志中的响应内容，或清除缓存重试
 
-### DeepSeek API 错误
+### AI API 错误
 
-**错误提示：DeepSeek API 调用失败**
+**错误提示：AI API 调用失败**
 - 原因：API 密钥无效、配额不足或网络问题
 - 解决：检查 api_key 配置，确保账户有足够配额
 
@@ -648,3 +654,4 @@ docker inspect bilicomment-bot --format='{{.State.Health.Status}}'
 ## Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=Janson20/BiliCommentBot&type=date&legend=top-left)](https://www.star-history.com/#Janson20/BiliCommentBot&type=date&legend=top-left)
+

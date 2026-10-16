@@ -21,6 +21,10 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
+from ai_client import AIClientError, request_chat_completion, resolve_ai_config
+from knowledge import build_knowledge_context
+from storage import Storage
+
 # ─────────────────────────────────────────────
 #  文件路径常量
 # ─────────────────────────────────────────────
@@ -57,13 +61,32 @@ DEFAULT_CONFIG = {
         "expire_time": 43200,
         "cache_file": "video_cache.json",
     },
-    "deepseek": {
+    "ai": {
         "api_key": "",
-        "base_url": "https://api.deepseek.com",
-        "model": "deepseek-flash",
+        "base_url": "https://api.openai.com/v1",
+        "model": "gpt-4o-mini",
         "max_tokens": 200,
         "temperature": 0.7,
+        "json_mode": False,
         "system_prompt": "你是一个友善的B站UP主，请对评论做出自然、友好的回复。回复要简洁明了，控制在100字以内。",
+    },
+    "knowledge": {
+        "enabled": True,
+        "retrieval_limit": 6,
+        "max_context_chars": 5000,
+        "chunk_size": 800,
+        "chunk_overlap": 120,
+    },
+    "search": {
+        "provider": "disabled",
+        "api_key": "",
+        "endpoint": "",
+        "timeout": 15,
+        "max_results": 5,
+    },
+    "publishing": {
+        "strategy": "manual",
+        "auto_publish_max_risk": 20,
     },
     "reply": {
         "enabled": True,
@@ -304,6 +327,7 @@ class BiliCommentBot:
         self.logger = logger
         self.socketio = socketio  # 可选，用于推送到前端
         self.on_config_changed = on_config_changed  # 配置变更回调，用于持久化
+        self.storage = Storage()
 
         self.session = requests.Session()
         adapter = HTTPAdapter(pool_connections=10, pool_maxsize=20, max_retries=Retry(total=0))
@@ -954,10 +978,16 @@ class BiliCommentBot:
 
         return all_replies
 
-    # ── DeepSeek 回复生成 ──
-    def generate_reply(self, comment: str, context: List[Comment] = None, video_title: str = None, video_desc: str = None) -> Optional[str]:
-        api_config = self.config["deepseek"]
-        headers = {"Authorization": f"Bearer {api_config['api_key']}", "Content-Type": "application/json"}
+    # ── OpenAI 兼容接口回复生成 ──
+    def generate_reply(
+        self,
+        comment: str,
+        context: List[Comment] = None,
+        video_title: str = None,
+        video_desc: str = None,
+        knowledge_context: str = "",
+    ) -> Optional[str]:
+        api_config = resolve_ai_config(self.config)
         system_prompt = api_config.get("system_prompt", "你是一个友善的B站UP主，请对评论做出自然、友好的回复。控制在100字以内。")
         messages = [{"role": "system", "content": system_prompt}]
         video_context = ""
@@ -967,48 +997,35 @@ class BiliCommentBot:
                 video_context += f"标题：{video_title}\n"
             if video_desc:
                 video_context += f"简介：{video_desc}\n"
-        if context or video_context:
+        if context or video_context or knowledge_context:
             ctx_text = video_context
+            if knowledge_context:
+                ctx_text += (
+                    "\n可用于回答的知识资料如下。仅根据资料中明确的信息回答；"
+                    "资料不足时应坦诚说明，不要编造：\n"
+                    f"{knowledge_context}\n"
+                )
             if context:
                 ctx_text += "前面的评论上下文（已回复的历史评论，仅供参考，请勿回复这些历史评论）：\n"
                 for i, c in enumerate(context, 1):
                     ctx_text += f"{i}. {c.user}: {c.content}\n"
             messages.append({"role": "user", "content": ctx_text.strip()})
         messages.append({"role": "user", "content": comment})
-        data = {
-            "model": api_config["model"],
-            "messages": messages,
-            "max_tokens": api_config["max_tokens"],
-            "temperature": api_config["temperature"],
-        }
-        try:
-            # 使用 bot 的 session（复用连接池），失败时重试
-            max_attempts = max(1, self.config.get("rate_limit", {}).get("max_retries", 3))
-            for attempt in range(max_attempts):
-                try:
-                    response = self.session.post(
-                        f"{api_config['base_url']}/chat/completions",
-                        headers=headers, json=data, timeout=30,
+        max_attempts = max(1, self.config.get("rate_limit", {}).get("max_retries", 3))
+        for attempt in range(max_attempts):
+            try:
+                return request_chat_completion(
+                    api_config, messages, timeout=30, session=self.session
+                )
+            except AIClientError as exc:
+                self.logger.error(f"AI API 请求失败: {exc}")
+                if attempt < max_attempts - 1:
+                    wait = self.retry_delay * (2 ** attempt) + random.uniform(0, 2)
+                    self.logger.warning(
+                        f"AI API 重试 ({attempt + 1}/{max_attempts})，等待 {wait:.1f}s"
                     )
-                    if response.status_code == 200:
-                        return response.json()["choices"][0]["message"]["content"].strip()
-                    self.logger.error(f"DeepSeek API失败: {response.status_code} {response.text[:200]}")
-                    if attempt < max_attempts - 1:
-                        wait = self.retry_delay * (2 ** attempt) + random.uniform(0, 2)
-                        self.logger.warning(f"DeepSeek API重试 ({attempt+1}/{max_attempts}) 等待 {wait:.1f}s")
-                        time.sleep(wait)
-                        continue
-                    return None
-                except requests.exceptions.RequestException as e:
-                    self.logger.error(f"DeepSeek API请求异常: {e}")
-                    if attempt < max_attempts - 1:
-                        wait = self.retry_delay * (2 ** attempt) + random.uniform(0, 2)
-                        time.sleep(wait)
-                        continue
-                    return None
-        except Exception as e:
-            self.logger.error(f"DeepSeek API异常: {e}")
-            return None
+                    time.sleep(wait)
+        return None
 
     # ── 评论点赞 ──
     def like_comment(self, bvid: str, comment_id: str) -> bool:
@@ -1175,6 +1192,57 @@ class BiliCommentBot:
                     self.on_config_changed(new_rt)
         self.last_cookie_refresh_time = current_time
 
+    def _get_knowledge_context(self, video_id: int, query: str) -> str:
+        cfg = self.config.get("knowledge", {})
+        if not cfg.get("enabled", True):
+            return ""
+        rows = self.storage.search_chunks(
+            query,
+            video_id=video_id,
+            limit=max(1, int(cfg.get("retrieval_limit", 6))),
+        )
+        return build_knowledge_context(rows, int(cfg.get("max_context_chars", 5000)))
+
+    @staticmethod
+    def _calculate_risk_score(comment: str, reply: str) -> int:
+        text = f"{comment}\n{reply}".casefold()
+        score = 0
+        risk_terms = {
+            "政治": 35, "违法": 35, "自杀": 45, "医疗": 30, "药物": 25,
+            "投资": 25, "转账": 40, "微信": 25, "qq": 20, "联系方式": 20,
+            "密码": 35, "身份证": 40, "保证": 15, "绝对": 10,
+        }
+        for term, weight in risk_terms.items():
+            if term in text:
+                score += weight
+        if len(reply) > 200:
+            score += 10
+        if "http://" in text or "https://" in text:
+            score += 15
+        return min(score, 100)
+
+    def publish_draft(self, draft_id: int) -> bool:
+        draft = self.storage.get_draft(draft_id)
+        if not draft:
+            raise KeyError(f"草稿 {draft_id} 不存在")
+        if draft["status"] not in {"approved", "failed"}:
+            raise ValueError("只有已批准或发布失败的草稿可以发布")
+        if draft["status"] == "failed":
+            self.storage.transition_draft(draft_id, "approved")
+        success = self.reply_comment(
+            draft["bvid"],
+            draft["comment_external_id"],
+            draft["content"],
+            root_id=draft.get("root_external_id"),
+            parent_id=draft.get("parent_external_id"),
+        )
+        if success:
+            self.storage.transition_draft(draft_id, "published")
+            self.stats["total_replied"] += 1
+            return True
+        self.storage.transition_draft(draft_id, "failed", error="B站发布接口返回失败")
+        return False
+
     # ── 主处理循环 ──
     def process_comments(self):
         if self.auto_refresh_cookie:
@@ -1203,17 +1271,26 @@ class BiliCommentBot:
                 break
             bvid = video["bvid"]
             title = video.get("title", "")
+            video_record = self.storage.get_video(bvid)
+            if video_record is None:
+                video_record = self.storage.upsert_video(bvid, title or bvid, video.get("desc", ""))
+            elif title and title != f"指定视频({bvid})":
+                video_record = self.storage.upsert_video(
+                    bvid, title, video_record.get("content") or video.get("desc", "")
+                )
+            title = video_record["title"]
+            video_desc = video_record.get("content") or video.get("desc", "")
             self.logger.info(f"处理视频: {title} ({bvid})")
             comments = self.get_video_comments(bvid)
 
             for idx, comment in enumerate(comments):
                 if processed_count >= max_process:
                     break
-                if comment.comment_id in self.processed_comments:
+                if (
+                    comment.comment_id in self.processed_comments
+                    or self.storage.get_draft_for_external_comment(comment.comment_id)
+                ):
                     continue
-
-                # 立即标记，防止重复
-                self.processed_comments.add(comment.comment_id)
 
                 # 跳过自己的评论
                 if my_uid and comment.uid == my_uid:
@@ -1242,65 +1319,84 @@ class BiliCommentBot:
                         if comments[i].comment_id != comment.parent_id:
                             context.append(comments[i])
 
-                reply = self.generate_reply(comment.content, context, title, video.get("desc", ""))
+                stored_comment = self.storage.add_comment(
+                    video_record["id"],
+                    comment.comment_id,
+                    comment.user,
+                    comment.content,
+                    parent_external_id=comment.parent_id,
+                    root_external_id=comment.root_id,
+                    commented_at=datetime.fromtimestamp(comment.time).isoformat(),
+                )
+                knowledge_context = self._get_knowledge_context(video_record["id"], comment.content)
+                reply = self.generate_reply(
+                    comment.content, context, title, video_desc, knowledge_context
+                )
                 if not reply:
                     self.logger.warning(f"生成回复失败，跳过评论 {comment.comment_id}")
                     continue
 
+                risk_score = self._calculate_risk_score(comment.content, reply)
+                draft = self.storage.create_draft(
+                    stored_comment["id"], reply, risk_score=risk_score
+                )
+                self.processed_comments.add(comment.comment_id)
+                strategy = self.config.get("publishing", {}).get("strategy", "manual")
+                threshold = int(
+                    self.config.get("publishing", {}).get("auto_publish_max_risk", 20)
+                )
+                should_publish = strategy == "automatic" or (
+                    strategy == "mixed" and risk_score <= threshold
+                )
+                if not should_publish:
+                    processed_count += 1
+                    self.logger.info(
+                        f"回复草稿已进入审核队列: {comment.comment_id} (风险分 {risk_score})"
+                    )
+                    self._emit("new_draft", self.storage.get_draft(draft["id"]))
+                    continue
+
+                self.storage.transition_draft(draft["id"], "approved")
+
                 if self.config["reply"].get("like_enabled", False):
                     self.like_comment(bvid, comment.comment_id)
 
-                is_child_comment = comment.depth > 0 and comment.root_id is not None
-
-                if is_child_comment:
-                    if not comment.root_id:
-                        self.logger.error(f"楼中楼回复失败：根评论ID为空 (comment_id={comment.comment_id})")
-                        continue
-                    self.logger.info(f"楼中楼回复: 根评论={comment.root_id}, 当前评论={comment.comment_id}")
-                    if self.reply_comment(bvid, comment.comment_id, reply, root_id=comment.root_id):
-                        self.logger.info(f"楼中楼回复成功: {comment.comment_id}")
-                        self.processed_comments.add(comment.comment_id)
-                        self.save_history(comment, reply)
-                    continue
-                else:
-                    # 主评论回复
-                    if not self.reply_comment(bvid, comment.comment_id, reply):
-                        continue
-                    self.processed_comments.add(comment.comment_id)
-                    self.save_history(comment, reply)
+                if not self.publish_draft(draft["id"]):
                     processed_count += 1
-                    self.stats["total_replied"] += 1
+                    continue
+                self.save_history(comment, reply)
+                processed_count += 1
 
-                    # 点赞评论用户的最新视频
-                    if self.config["reply"].get("like_user_video_enabled", False):
-                        self.logger.info(f"[点赞视频] 配置已启用，准备点赞用户 {comment.user} (UID: {comment.uid}) 的最新视频")
-                        only_followers = self.config["reply"].get("like_user_video_only_followers", False)
+                # 点赞评论用户的最新视频
+                if self.config["reply"].get("like_user_video_enabled", False):
+                    self.logger.info(f"[点赞视频] 配置已启用，准备点赞用户 {comment.user} (UID: {comment.uid}) 的最新视频")
+                    only_followers = self.config["reply"].get("like_user_video_only_followers", False)
 
-                        skip_like = False
-                        if only_followers:
-                            my_uid = self.config["bilibili"].get("uid")
-                            if my_uid:
-                                is_follower = self.check_is_follower(comment.uid, my_uid)
-                                if not is_follower:
-                                    self.logger.info(f"[点赞视频] 用户 {comment.user} 未关注你，跳过点赞视频")
-                                    skip_like = True
-                            else:
-                                self.logger.warning("[点赞视频] 未配置 uid，无法检查粉丝关系，跳过点赞视频")
+                    skip_like = False
+                    if only_followers:
+                        my_uid = self.config["bilibili"].get("uid")
+                        if my_uid:
+                            is_follower = self.check_is_follower(comment.uid, my_uid)
+                            if not is_follower:
+                                self.logger.info(f"[点赞视频] 用户 {comment.user} 未关注你，跳过点赞视频")
                                 skip_like = True
+                        else:
+                            self.logger.warning("[点赞视频] 未配置 uid，无法检查粉丝关系，跳过点赞视频")
+                            skip_like = True
 
-                        if not skip_like:
-                            latest_video = self.get_user_latest_video(comment.uid)
-                            if latest_video:
-                                if self.like_video(latest_video["bvid"]):
-                                    self.logger.info(f"[点赞视频] ✓ 成功点赞用户 {comment.user} 的最新视频")
-                                else:
-                                    self.logger.warning(f"[点赞视频] ✗ 点赞用户 {comment.user} 的最新视频失败")
+                    if not skip_like:
+                        latest_video = self.get_user_latest_video(comment.uid)
+                        if latest_video:
+                            if self.like_video(latest_video["bvid"]):
+                                self.logger.info(f"[点赞视频] ✓ 成功点赞用户 {comment.user} 的最新视频")
                             else:
-                                self.logger.warning(f"[点赞视频] 用户 {comment.user} 没有视频或获取失败")
+                                self.logger.warning(f"[点赞视频] ✗ 点赞用户 {comment.user} 的最新视频失败")
+                        else:
+                            self.logger.warning(f"[点赞视频] 用户 {comment.user} 没有视频或获取失败")
 
-                    delay = self.config["reply"].get("reply_delay", 2)
-                    if delay > 0:
-                        time.sleep(delay)
+                delay = self.config["reply"].get("reply_delay", 2)
+                if delay > 0:
+                    time.sleep(delay)
 
     def _check_filters(self, comment: Comment) -> tuple:
         """检查评论是否通过所有过滤器。返回 (通过, 跳过原因)"""

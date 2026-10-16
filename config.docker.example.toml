@@ -43,14 +43,16 @@ expire_time = 43200
 # 缓存文件路径（Docker模式下相对于 data 目录）
 cache_file = "video_cache.json"
 
-# DeepSeek API配置
-[deepseek]
-# DeepSeek API密钥
+# OpenAI Chat Completions 兼容接口配置
+[ai]
+# API 密钥
 api_key = "sk-xxx"
-# API基础URL
-base_url = "https://api.deepseek.com"
-# 使用的模型
-model = "deepseek-flash"
+# Base URL，也可填写完整的 /chat/completions 地址
+base_url = "https://api.openai.com/v1"
+# 服务支持的模型名称
+model = "gpt-4o-mini"
+# 蒸馏 JSON Mode；兼容站不支持时设为 false
+json_mode = false
 # 最大回复长度
 max_tokens = 500
 # 温度参数（0-1，控制回复的随机性）
